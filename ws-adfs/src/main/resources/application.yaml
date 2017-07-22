@@ -1,0 +1,26 @@
+server:
+  port: 8181
+security:
+  basic:
+    enabled: false
+  oauth2:
+    client:
+      clientId: 1fd9b444-8ba4-4d82-942e-91aaf79f5fd0
+      clientSecret: LO9LLJ18XIsEiItgAjy8Jf2no2Za8vP2BZBuB7Rf
+      userAuthorizationUri: https://adfs1.crosisdev.com/adfs/oauth2/authorize?resource=http://localhost:8181/web-service
+      accessTokenUri: https://adfs1.crosisdev.com/adfs/oauth2/token
+      tokenName: code
+      authenticationScheme: query
+      clientAuthenticationScheme: form
+      grant-type: authorization_code
+    resource:
+      userInfoUri: https://adfs1.crosisdev.com/adfs/userinfo
+
+client:
+    ssl:
+        truststore: file:./ADFS-CA-Cert.cer
+        trustStorePassword: 123456
+logging:
+  level:
+    com.example.demo: DEBUG
+    org.springframework.security: DEBUG
