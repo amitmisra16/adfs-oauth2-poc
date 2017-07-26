@@ -1,128 +1,64 @@
 package com.example.demo;
 
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.Principal;
-import java.util.Arrays;
-import java.util.Map;
-
-import javax.servlet.Filter;
-
-import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.security.oauth2.client.EnableOAuth2Sso;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.PrincipalExtractor;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.ResourceServerProperties;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.oauth2.client.OAuth2ClientContext;
-import org.springframework.security.oauth2.client.OAuth2RestTemplate;
-import org.springframework.security.oauth2.client.filter.OAuth2ClientAuthenticationProcessingFilter;
-import org.springframework.security.oauth2.client.resource.OAuth2ProtectedResourceDetails;
-import org.springframework.security.oauth2.client.token.AccessTokenProvider;
-import org.springframework.security.oauth2.client.token.AccessTokenProviderChain;
-import org.springframework.security.oauth2.client.token.OAuth2AccessTokenSupport;
-import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeAccessTokenProvider;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.method.configuration.GlobalMethodSecurityConfiguration;
+import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
+import org.springframework.security.oauth2.provider.expression.OAuth2MethodSecurityExpressionHandler;
 import org.springframework.security.oauth2.provider.token.ResourceServerTokenServices;
-import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.View;
-import org.springframework.web.servlet.view.RedirectView;
 
 @SpringBootApplication
-@EnableOAuth2Sso
 @RestController
-//@EnableResourceServer
-public class SimpleApplication extends WebSecurityConfigurerAdapter {
+@EnableResourceServer
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class SimpleApplication extends GlobalMethodSecurityConfiguration {
 
     private static Logger LOGGER = LoggerFactory.getLogger(SimpleApplication.class);
 
     @Autowired
   private ResourceServerProperties sso;
 
-//    @Primary
-//	@Bean("userInfoTokenServices")
-//	public ResourceServerTokenServices userInfoTokenServices() {
-//	    return new AdfsUserInfoTokenServices(sso.getUserInfoUri(), sso.getClientId());
-//	}
+    @Primary
+	@Bean("userInfoTokenServices")
+	public ResourceServerTokenServices userInfoTokenServices() {
+	    return new AdfsUserInfoTokenServices("https://adfs1.crosisdev.com/adfs/oauth2/token", "914bf0c5-cdd0-4b70-b188-f3682fec920f");
+	}
 
-@Override
-  protected void configure(HttpSecurity http) throws Exception {
-    http
-      .antMatcher("/**")
-      .authorizeRequests()
-        .antMatchers("/", "/login**", "/webjars/**")
-        .permitAll()
-      .anyRequest()
-        .authenticated()
-            .and().addFilterBefore(oauthFilter(), BasicAuthenticationFilter.class);
-  }
+    /*@Primary
+    @Bean
+    public RemoteTokenServices tokenServices() {
+        RemoteTokenServices tokenService = new RemoteTokenServices();
+        tokenService.setCheckTokenEndpointUrl("https://adfs1.crosisdev.com/adfs/oauth2/token");
+        tokenService.setClientId("914bf0c5-cdd0-4b70-b188-f3682fec920f");
+        tokenService.setClientSecret("F4aZJptMfIaYXlFgcNr-J6rnCMbiPhxn9BuJ6nqV");
+        return tokenService;
+    }*/
 
-    @Autowired
-    OAuth2ClientContext oauth2ClientContext;
-
-    @Autowired
-    OAuth2ProtectedResourceDetails resource;
-
-    @Autowired
-    ResourceServerProperties resourceServer;
-
-    @Autowired
-    RequestHelper requestHelper;
-// https://stackoverflow.com/questions/37854133/how-to-set-proxy-on-spring-oauth2-oauth2accesstoken-request-or-how-to-override-o
-
-    private Filter oauthFilter() throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
-        OAuth2ClientAuthenticationProcessingFilter oauthFilter = new OAuth2ClientAuthenticationProcessingFilter("/login");
-        // Set request factory for '/userinfo'
-        LOGGER.info("token info uri {}, clientId {}", sso.getTokenInfoUri(), sso.getClientId());
-        ResourceServerTokenServices userInfoTokenServices = new AdfsUserInfoTokenServices(sso.getTokenInfoUri(), sso.getClientId());
-        oauthFilter.setTokenServices(userInfoTokenServices);
-
-        OAuth2RestTemplate oauthTemplate = new OAuth2RestTemplate(resource, oauth2ClientContext);
-        OAuth2AccessTokenSupport authAccessProvider = new AuthorizationCodeAccessTokenProvider();
-        // Set request factory for '/oauth/token'
-        authAccessProvider.setRequestFactory(requestHelper.getRequestFactory());
-        AccessTokenProvider accessTokenProvider = new AccessTokenProviderChain(Arrays.<AccessTokenProvider> asList(
-                (AuthorizationCodeAccessTokenProvider)authAccessProvider));
-        oauthTemplate.setAccessTokenProvider(accessTokenProvider);
-        oauthTemplate.setRequestFactory(requestHelper.getRequestFactory());
-        oauthFilter.setRestTemplate(oauthTemplate);
-        // UserInfoTokenServices userInfoTokenService = new UserInfoTokenServices(resourceServer.getUserInfoUri(), resource.getClientId());
-        // userInfoTokenService.setRestTemplate(oauthTemplate);
-        // oauthFilter.setTokenServices(userInfoTokenService);
-        return oauthFilter;
+    @Override
+    protected MethodSecurityExpressionHandler createExpressionHandler() {
+        return new OAuth2MethodSecurityExpressionHandler();
     }
 
-	@RequestMapping("/user")
-  public Principal user(Principal principal) {
+    @PreAuthorize("#oauth2.hasScope('read')")
+  @RequestMapping("/hello")
+  public String sayHello(String userName) {
 
-    return principal;
-  }
-
-  @RequestMapping("/getAToken")
-  public View getAToken(Model model) {
-        return new RedirectView("index.html");
+        return "{\"message\": \"Hello World\"}";
   }
 
 	public static void main(String[] args) {
 		SpringApplication.run(SimpleApplication.class, args);
 	}
 
-
-	private static class AdfsPrincipalExtractor implements PrincipalExtractor {
-
-        @Override
-        public Object extractPrincipal(Map<String, Object> map) {
-           String[] principalKeys = {"upn"};
-
-           return map.keySet().stream().filter(key -> ArrayUtils.contains(principalKeys, key)).map(key -> map.get(key)).findAny().get();
-        }
-    }
 }

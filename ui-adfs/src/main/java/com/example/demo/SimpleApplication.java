@@ -5,18 +5,15 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.Arrays;
-import java.util.Map;
 
 import javax.servlet.Filter;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.oauth2.client.EnableOAuth2Sso;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.PrincipalExtractor;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.ResourceServerProperties;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -30,13 +27,13 @@ import org.springframework.security.oauth2.client.resource.OAuth2ProtectedResour
 import org.springframework.security.oauth2.client.token.AccessTokenProvider;
 import org.springframework.security.oauth2.client.token.AccessTokenProviderChain;
 import org.springframework.security.oauth2.client.token.OAuth2AccessTokenSupport;
-import org.springframework.security.oauth2.client.token.grant.client.ClientCredentialsResourceDetails;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeAccessTokenProvider;
 import org.springframework.security.oauth2.provider.token.ResourceServerTokenServices;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.View;
 import org.springframework.web.servlet.view.RedirectView;
 
@@ -108,23 +105,28 @@ public class SimpleApplication extends WebSecurityConfigurerAdapter {
 
 	@RequestMapping("/user")
   public Principal user(Principal principal) {
+        return principal;
 
-        ClientCredentialsResourceDetails resource = new ClientCredentialsResourceDetails();
-        resource.setId("914bf0c5-cdd0-4b70-b188-f3682fec920f");
-        resource.setClientId("914bf0c5-cdd0-4b70-b188-f3682fec920f");
-        resource.setClientSecret("F4aZJptMfIaYXlFgcNr-J6rnCMbiPhxn9BuJ6nqV");
-        resource.setAccessTokenUri("https://adfs1.crosisdev.com/adfs/oauth2/authorize?resource=http://localhost:8181/web-service");
-        
-        OAuth2RestTemplate oauthTemplate = new OAuth2RestTemplate(resource);
+        /*RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
         headers.set("Authorization", String.format("Bearer %s", oauth2ClientContext.getAccessToken().getValue()));
         LOGGER.info("Setting bearer: {}", oauth2ClientContext.getAccessToken().getValue());
         HttpEntity<Principal> request = new HttpEntity<>(headers);
-        Principal exchangedPrincipal = oauthTemplate.exchange("http://localhost:8181/web-service/user", GET, request, Principal.class, principal).getBody();
+        String response = restTemplate.exchange("http://localhost:8181/web-service/hello", GET, request, String.class, principal.getName()).getBody();
+        LOGGER.info("Response:::::: {}", response);
+        return response;*/
+  }
 
-
-        return exchangedPrincipal;
+  @RequestMapping("/sayHello")
+  public String sayHello() {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        headers.set("Authorization", String.format("Bearer %s", oauth2ClientContext.getAccessToken().getValue()));
+        LOGGER.info("Setting bearer: {}", oauth2ClientContext.getAccessToken().getValue());
+        HttpEntity<Principal> request = new HttpEntity<>(headers);
+        return restTemplate.exchange("http://localhost:8181/web-service/hello", GET, request, String.class, "ABC").getBody();
   }
 
   @RequestMapping("/getAToken")
@@ -135,15 +137,4 @@ public class SimpleApplication extends WebSecurityConfigurerAdapter {
 	public static void main(String[] args) {
 		SpringApplication.run(SimpleApplication.class, args);
 	}
-
-
-	private static class AdfsPrincipalExtractor implements PrincipalExtractor {
-
-        @Override
-        public Object extractPrincipal(Map<String, Object> map) {
-           String[] principalKeys = {"upn"};
-
-           return map.keySet().stream().filter(key -> ArrayUtils.contains(principalKeys, key)).map(key -> map.get(key)).findAny().get();
-        }
-    }
 }

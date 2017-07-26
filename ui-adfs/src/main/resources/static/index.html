@@ -23,6 +23,14 @@
           self.user = "N/A";
           self.authenticated = false;
         });
+        $http.get("/web-app/sayHello").success(function(data) {
+            console.log("received response: " + data.message);
+            self.saidHello =true;
+            self.helloMessage = data.message;
+        }).error(function() {
+            self.saidHello = false;
+            self.response = "N/A";
+        });
       });
     </script>
 </head>
@@ -34,6 +42,14 @@
   </div>
   <div class="container" ng-show="home.authenticated">
   	Logged in as: <span ng-bind="home.user"></span>
+      <div class="container" ng-show="!home.saidHello">
+        <a href="/web-app/sayHello">Click to say hello</a>
+
+      </div>
+      <div class="container" ng-show="home.saidHello">
+        Received message: <span ng-bind="home.helloMessage"></span>
+
+      </div>
   </div>
 </body>
 </html>
